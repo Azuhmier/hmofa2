@@ -8,11 +8,11 @@ import re
 import sys
 
 
-opts = {"updateOnly":True,"verbose":True}
 maxIter = 1000
 urlOfCurPage = 'https://desuarchive.org/trash/search/text/%22Human%20Males%20On%20Female%20Anthros%20General%22/type/op/'
 timeout = 1 #seconds
-relPathToFile = '../../threads/html'
+relDirThreadHtmls = '../../threads/html'
+opts = {"updateOnly":True,"verbose":True}
 if not opts['verbose'] :
     sys.stdout = open(os.devnull, 'w')
 
@@ -37,14 +37,14 @@ def getUrlOfNextPage(soup):
         urlOfNextPage = aNextBtn["href"]
     return urlOfNextPage
 
-def getAbsPathRelToFile(relPathToFile):
+def getAbsPathRelToFile(relDirThreadHtmls):
     fileDir = os.path.dirname(__file__)
-    absPathRelToFile = os.path.join(fileDir, relPathToFile) 
+    absPathRelToFile = os.path.join(fileDir, relDirThreadHtmls) 
     return os.path.abspath(absPathRelToFile)
 
 
 
-dirThreadHtmls = getAbsPathRelToFile(relPathToFile)
+dirThreadHtmls = getAbsPathRelToFile(relDirThreadHtmls)
 lastThreadNumFetchedPrev = getLastThreadNumFetchedPrev(dirThreadHtmls)
 lastThreadNumFetchedPrevUpdated = False
 
@@ -72,10 +72,21 @@ for i in range(1, maxIter, 1) :
                    r = getContent(threadUrl,1)
                    f.write(r.text)
             else :
-               break
+               if opt['updateOnly'] is True
+                   continue
+               else :
+                   break
         elif os.path.isfile(filePathThreadHtml) : 
-            print("----skipping thread " + str(threadNum))
-            break
+            if os.stat(filePathThreadHtml).st_size == 0 :
+               with open(filePathThreadHtml, 'w+') as f:
+                   r = getContent(threadUrl,1)
+                   f.write(r.text)
+            else :
+                print("----skipping thread " + str(threadNum))
+                if opt['updateOnly'] is True
+                    continue
+                else :
+                    break
         else :
            print("----adding thread " + str(threadNum))
            with open(filePathThreadHtml, 'w+') as f:
@@ -85,6 +96,7 @@ for i in range(1, maxIter, 1) :
         urlOfCurPage = getUrlOfNextPage(soup)
         if urlOfCurPage is None :
             break
-    break
+    if opt['updateOnly'] is True
+        break
 
 print("Update Finished")

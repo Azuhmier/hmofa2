@@ -1,175 +1,94 @@
 #!/usr/bin/env python3
 import os
 import logging
+import sys
+import time
+import datetime
 from bs4 import BeautifulSoup
 
-def listdir_nohidden(path):
-    for f in os.listdir(path):
-        if not f.startswith('.'):
-            yield f
+opts = {"updateOnly":True,"verbose":True}
+if not opts['verbose'] :
+    sys.stdout = open(os.devnull, 'w')
+relDirThreadHtmls   = '../../threads/html'
+relDirOpTexts   = '../../threads/ops'
 
-def getAbsPathRelToFile(relPathToFile):
-    file_dir = os.path.dirname(__file__)
-    absPathRelToFile = os.path.join(file_dir, relPathToFile) 
-    return absPathRelToFile
-  
-relPathToFile   = '../../../threads/html'
-relPathToFile2   = '../../../threads/ops'
-contents_dir    = getAbsPathRelToFile(relPathToFile)
-op_dir    = getAbsPathRelToFile(relPathToFile2)
-threadNoList = listdir_nohidden(contents_dir)
-print("Parsing OPs from Thread Htmls")
+def getThreadNums(dirThreadHtmls):
+    for fileNameThreadHtml in os.listdir(dirThreadHtmls):
+        if not fileNameThreadHtml.startswith('.'):
+            threadNum = fileNameThreadHtml[:-5]
+            yield threadNum
 
-for thread_no in threadNoList :
+def getMetaText (article) :
+    metaText=''
+    meta = article.find_all("div", class_="pull-right")[0].text
+    listMetaValues = meta[1:-1].split(' / ')
+    listMetaKeys = ['posts ','images','ip    ']
+    listMeta = ['    '.join(z) for z in zip(listMetaKeys, listMetaValues)]
+    metaText = metaText + '\n'.join(listMeta)
+    dateTimeOfThreadCreation = article.find_all("span", class_="time_wrap")[0].text
+    formatString = " %a %d %b %Y %H:%M:%S "
+    timeStampOfThreadCreation = time.mktime(datetime.datetime.strptime(dateTimeOfThreadCreation, formatString).timetuple())
+    metaText = metaText + '\ntime      '+str(timeStampOfThreadCreation)
+    return metaText
 
-    opTextFilePath = os.path.join(op_dir,thread_no)
-    if os.path.isfile(opTextFilePath) : 
-        continue
-    content_path  = os.path.join(contents_dir, thread_no)
-    print("++Parsing OP from thread "+thread_no)
-    soup = BeautifulSoup(open(content_path), 'html.parser')
-    article = soup.body.find_all("article", id=thread_no)[0]
+def getOpText(article):
     div = article.find_all("div", class_="text")[0]
     for elem in div.find_all(["a", "span", "div", "br"]):
         if elem.name == 'br':
             elem.replace_with("\n")
         else :
             elem.replace_with(elem.text)
-    op_text = div.get_text().lstrip()
+    opText = div.get_text()
+    return opText
 
-    with open(opTextFilePath, 'w+') as f:
-        f.write(op_text)
-    #break
+def getAbsPathRelToFile(relDirThreadHtmls):
+    fileDir = os.path.dirname(__file__)
+    absPathRelToFile = os.path.join(fileDir, relDirThreadHtmls) 
+    return os.path.abspath(absPathRelToFile)
+  
+
+dirThreadHtmls = getAbsPathRelToFile(relDirThreadHtmls)
+dirOpTextFolders = getAbsPathRelToFile(relDirOpTexts)
+listThreadNums = getThreadNums(dirThreadHtmls)
+
+print("Parsing OPs from Thread Htmls")
+
+i = 0
+for threadNum in listThreadNums :
+    #if i == 2:
+    #    break
+
+    pathOpTextFolder = os.path.join(dirOpTextFolders,threadNum)
+    filePathOpText = os.path.join(pathOpTextFolder,threadNum+".txt")
+    filePathOpMetaText = os.path.join(pathOpTextFolder,"meta"+threadNum+".txt")
+    filePathThreadHtml  = os.path.join(dirThreadHtmls, threadNum+".html")
+
+    if os.path.exists(pathOpTextFolder) : 
+        if os.path.isfile(filePathOpText) :
+            if os.stat(filePathOpText).st_size != 0 :
+                if os.path.isfile(filePathOpMetaText) :
+                    print("[already parsed]--skipping " + threadNum)
+                    continue
+
+    elif os.stat(filePathThreadHtml).st_size == 0 :
+        print("--[empty html]skipping " + threadNum)
+        continue
+
+    i = i + 1
+    print("--Parsing OP from "+filePathThreadHtml)
+
+    soup = BeautifulSoup(open(filePathThreadHtml), 'html.parser')
+    article = soup.body.find_all("article", id=threadNum)[0]
+    opText = getOpText(article)
+    metaText = getMetaText(article)
+    
+
+    if not os.path.exists(pathOpTextFolder):
+        os.mkdir(pathOpTextFolder)
+    with open(filePathOpText, 'w+') as f:
+        f.write(opText)
+    with open(filePathOpMetaText, 'w+') as fMeta:
+        fMeta.write(metaText)
 
 print("Finished")
 
-
-#from bs4 import BeautifulSoup
-#import re
-#import pprint
-#import numpy as np
-#import copy
-
-
-#pp = pprint.PrettyPrinter(indent=4)
-#re_author =  re.compile("^\s*[Bb]y\s?\s*(.*)")
-#re_title  =  re.compile("^>\s*(.+?)\s*([(\[].+[)\]])*$")
-#re_url    =  re.compile("^(http[^ ]+?)\s*([(\[].+[)\]])*$")
-#re_end    =  re.compile("^\[")
-#re_begin  =  re.compile("^\s*-*[sS]tories-*\s*$")
-#re_anon  =  re.compile("Anonymous|Anon")
-#
-#top = 0
-#def check_anon(author_hash):
-#    global top
-#    if re_anon.match(author_hash["author"]) :
-#        1
-#    else :
-#        add_titles(author_hash)
-#        return 0
-#    titles = [ author_hash["titles"][idx]["title"] for idx in range(0,len(author_hash["titles"])) ]
-#    hsh = obj_hash["title"]
-#    anon_mat = [ hsh[title]["anon"] for title in titles if "anon" in hsh[title].keys() ]
-#    num = anon_mat[0] if len(anon_mat) != 0  else (top + 1)
-#    if len(anon_mat) == 0:
-#        top = top + 1
-#    for title in titles:
-#        hsh[title]["anon"] = num
-#
-#    #[ hsh[title]["anon"] = num for title in titles ]
-#    add_titles(author_hash)
-#    return num
-#
-#def add_titles(author_hash):
-#    hsh = obj_hash['author']
-#    name = author_hash['author']
-#    if not 'titles' in hsh[name].keys():
-#        hsh[name]['titles'] = [];
-#    
-#    for item in author_hash['titles']:
-#        hsh[name]['titles'].append(item)
-#
-#
-#
-#
-#
-#OP_list  = []
-#obj_hash = {"author":{},"title":{},"url":{} };
-#for num in range(1,7) :
-#    url = url_head+str(num)
-#    r = session.get(url)
-#    soup = BeautifulSoup(r.content, 'html.parser')
-#    posts = soup.find_all("article", {"class" : re.compile("post doc_id_")})
-#    for post in posts :
-#        hsh = {}
-#        hsh["thread_num"] = post["id"]
-#        date = re.compile("4chan Time: (.*)")
-#        hsh["date"] = date.match(post.find("span", {"class" : "time_wrap"}).time["title"]).group(1)
-#        div = post.find("div", {"class" : "text"})
-#        hsh["authors"] = [];
-#        pointer = hsh["authors"]
-#        flag = 0
-#        idx=0
-#        for line in div.get_text(separator="\n").splitlines() :
-#            author = re_author.match(line)
-#            title  = re_title.match(line)
-#            url    = re_url.match(line)
-#            begin  = re_begin.match(line)
-#            if flag :
-#                if author :
-#                    if len(hsh["authors"]) != 0:
-#                        last_author = hsh["authors"][-1]["author"]
-#                        num = check_anon(hsh["authors"][-1])
-#                        if num:
-#                            obj_hash["author"]["Anonymous#" + str(num)] = copy.deepcopy( obj_hash["author"][last_author])
-#                            obj_hash["author"].pop(last_author,None)
-#
-#                            hsh["authors"][-1]["author"] ="Anonymous#" + str(num)
-#
-#                    idx=idx+1
-#                    if author.group(1) not in obj_hash["author"]:
-#                        obj_hash["author"][author.group(1)] = {"idx":idx}
-#                    hsh["authors"].append({ "author" : author.group(1) })
-#                    hsh["authors"][-1]["titles"] = []
-#                elif title :
-#                    if title.group(1) not in obj_hash["title"]:
-#                        obj_hash["title"][title.group(1)] = {"idx":idx}
-#                    hsh["authors"][-1]["titles"].append({ "title" : title.group(1) })
-#                    hsh["authors"][-1]["titles"][-1]["attr"] = title.group(2)
-#                    hsh["authors"][-1]["titles"][-1]["urls"] = []
-#                elif url :
-#                    if url.group(1) not in obj_hash["url"]:
-#                        obj_hash["url"][url.group(1)] = {"idx":idx}
-#                    hsh["authors"][-1]["titles"][-1]["urls"].append({ "url" : url.group(1) })
-#                    hsh["authors"][-1]["titles"][-1]["urls"][-1]["attr"] = url.group(2)
-#                elif re_end.match(line) :
-#                    if len(hsh["authors"]) != 0:
-#                        last_author = hsh["authors"][-1]["author"]
-#                        num = check_anon(hsh["authors"][-1])
-#                        if num:
-#                            obj_hash["author"]["Anonymous#" + str(num)] = copy.deepcopy( obj_hash["author"][last_author])
-#                            obj_hash["author"].pop(last_author,None)
-#
-#                            hsh["authors"][-1]["author"] ="Anonymous#" + str(num)
-#
-#                    break
-#            if begin :
-#                flag = 1
-#        OP_list.append(hsh)
-#    time.sleep(0.5)
-#
-#author_stack = []
-#for op in OP_list[::-1]:
-#    #print(op["date"])
-#    for item in op["authors"][::-1]:
-#        author_stack.insert(0,(item["author"]))
-#        #if re_anon.match(item["author"],re.IGNORECASE):
-#        for idx, author in enumerate(author_stack[1:]):
-#            if item["author"].lower() == author.lower() :
-#                author_stack.pop(idx+1)
-#
-#for author in author_stack:
-#    print("By " + author)
-##new
-#pp.pprint(obj_hash)
-##index change
