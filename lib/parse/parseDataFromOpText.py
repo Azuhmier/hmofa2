@@ -2,317 +2,217 @@
 import os
 import re
 import sys
+import json
 
 opts = {"updateOnly":True,"verbose":True}
 if not opts['verbose'] :
     sys.stdout = open(os.devnull, 'w')
 
-reTitle = re.compile("^>([^\[(]+?)<*(?:(?:\s*-*\s*[\[(]\s*([^\[\]()]+)\s*[\])])|(?:\s+-\s+(.+)|\s+((?:pt\.?|part|ch\.?|chapter)\s+\d+)|))$")
-reAuthor = re.compile("^[bB]y\s([^\[(]+?)(?:[- ]*[\[(]\s*([^\[\]()]+)\s*[\])])*$")
-reUrl =  re.compile("^(http[^ ]+)(?:[- ]*[\[(]\s*([^\[\]()]+)\s*[\])])*$")
-reEdition = re.compile(r"^(?:>|\")\s*([^>\"]+)\s*(?:<|\")\s*edition$")
-reHeader = re.compile("^/(\w+)/.*#(\d+)$")
 
-relPathToOpsDir = '../../threads/ops'
 
-parentNode = {'value':None,
-              'type':'root',
-              'childs':[],
-              'UID':("p"+str(0)+"l"+str(0))}
+### Globals ###
+ov={ 'tree': {},
+     'nodeTable':{},
+     'UIDTable':{},
+     'UIDTypeTable':{},
+     'nodeOrd': { 'root':0,
+              'thread':1,
+              'header':2,
+              'edition':2,
+              'author':2,
+              'title':3,
+              'url':4 },}
 
-nodeOrd = {'root':0,
-           'thread':1,
-           'header':2,
-           'edition':2,
-           'author':2,
-           'title':3,
-           'url':4 }
+nodeOrd   = ov['nodeOrd']
+nodeTable = ov['nodeTable']
+UIDTable = ov['UIDTable']
+UIDTypeTable = ov['UIDTypeTable']
 
-nodeTable  = {'author':[],
-              'thread':[],
-              'edition':[],
-              'header':[],
-              'url':[],
-              'title':[],
-              'VOID':[],
-              'root':[] }
 
-nodeTable['root'].append(parentNode)
+### utilities ###
+def __addToNodeTable(node) :
+    if node['type'] not in nodeTable.keys() :
+        nodeTable[node['type']]=[]
+    nodeTable[node['type']].append(node)
 
-node = None
 
-def listDirNoHidden(path):
-    for f in os.listdir(path):
-        if not f.startswith('.'):
-            yield f
-
-def getAbsPathRelToFile(relDirThreadHtmls):
-    fileDir = os.path.dirname(__file__)
-    absPathRelToFile = os.path.join(fileDir, relDirThreadHtmls) 
-    return os.path.abspath(absPathRelToFile)
-  
-def insertStr(pos, string, line) :
-    newString = line[:pos] + string + line[pos:]
-    return newString
-
-def insertMultStr(args, s) :
-    ca = list(s)
-    for i, arg in enumerate(args) :
-        ca.insert(arg[0]+i, arg[1])
-    return ''.join(ca)
-
-def genValueTable () :
-    valueTable = {}    
-    for type in nodeTable :
-        valueTable[type] = {}
-        for node in nodeTable[type] : 
-           if node['value'] is not None :
-               if node['value'].lower() not in valueTable[type] :
-                   valueTable[type][node['value'].lower()] = {}
-                   valueTable[type][node['value'].lower()]['nodes'] = []
-                   valueTable[type][node['value'].lower()]['nodes'].append(node)
-               else :
-                   valueTable[type][node['value'].lower()]['nodes'].append(node)
-           else :
-               if node['type'] != 'root':
-                   if node['data_line'].lower() not in valueTable[type] :
-                       valueTable[type][node['data_line'].lower()] = {}
-                       valueTable[type][node['data_line'].lower()]['nodes'] = []
-                       valueTable[type][node['data_line'].lower()]['nodes'].append(node)
-                   else :
-                       valueTable[type][node['data_line'].lower()]['nodes'].append(node)
-    return valueTable
-
-def getValidParent(node,parentNode) :
-    if node['type'] != 'VOID' :
-        while nodeOrd[node['type']] <= nodeOrd[parentNode['type']]:
-            parentNode = parentNode['parent']
-    return parentNode
-
-def summarizeValueTable() :
-    for type in valueTable :
-        print(type)
-        values = list(valueTable[type].keys())
-        values.sort()
-        for value in values:
-            cnt = str(len(valueTable[type][value]['nodes'])) + ")"
-            print(f"    ({cnt:<5}{value}")
-
-def genVoidNode(line,UID) :
-    node = { 'value':None,
-             'data_line':line,
-             'UID':UID,
-             'type':'VOID',
-             'childs':[] }
+def __genNode(type=None) :
+    node = {'UID':None,
+            'type':type,
+            'data_line':None,
+            'value':None,
+            'span':None,
+            'span2':None,
+            'parent':None,
+            'childs':[], }
     return node
 
-def printNode(node,lvl=0) :
+def getAbsPathFromRelPath(relPathArg):
+    dirCurScript = os.path.dirname(__file__)
+    dirtyAbsPathArg = os.path.join(dirCurScript, relPathArg) 
+    absPathArg = os.path.abspath(dirtyAbsPathArg)
+    return absPathArg
 
-    args = None
+def __getValidParent(node, parentNode=None) :
+    if node['type'] != 'VOID' :
+        if node['type'] != 'root' :
+            while nodeOrd[node['type']] <= nodeOrd[parentNode['type']]:
+                parentNode = parentNode['parent']
+    return parentNode
 
-    if node['type'] == 'root' :
-        print('%%%%%%%% ROOT %%%%%%%%%%')
-
-    elif node['type'] == 'VOID' :
-        print(node['data_line'])
-
-    elif node['type'] == 'thread':
-        print("-------##"+node['value'])
-
-    elif node['type'] == 'author':
-
-        if node['span2'][0] == -1:
-            args = [[0,'<A>'], 
-                    [0,'<d>{'], 
-                    [node['span'][0],'}</d>'],
-                    [node['span'][0],'<v>{'],
-                    [node['span'][1],'}</v>'],
-                    [len(node['data_line']),'</A>'], ]
-
-        else :
-            args = [[0,'<A>'], 
-                    [0,'<d>{'], 
-                    [node['span'][0],'}</d>'],
-                    [node['span'][0],'<v>{'],
-                    [node['span'][1],'}</v>'],
-                    [node['span2'][0],'<a>{'],
-                    [node['span2'][1],'}</a>'],
-                    [len(node['data_line']),'</A>'], ]
-
-    elif node['type'] == 'edition':
-        args = [[0,'<E>'], 
-                [0,'<d>{'], 
-                [node['span'][0],'}</d>'],
-                [node['span'][0],'<v>{'],
-                [node['span'][1],'}</v>'],
-                [len(node['data_line']),'</E>'], ]
-
-    elif node['type'] == 'header':
-        args = [[0,'<H>'], 
-                [node['span2'][0],'<a>{'],
-                [node['span2'][1],'}</a>'],
-                [node['span'][0],'<v>{'],
-                [node['span'][1],'}</v>'],
-                [len(node['data_line']),'</H>'], ]
-
-    elif node['type'] == 'title':
-
-        if node['span2'][0] == -1:
-            args = [[0,'<T>'], 
-                    [0,'<d>{'], 
-                    [node['span'][0],'}</d>'],
-                    [node['span'][0],'<v>{'],
-                    [node['span'][1],'}</v>'],
-                    [len(node['data_line']),'</T>'], ]
-
-        else :
-            args = [[0,'<T>'], 
-                    [0,'<d>{'], 
-                    [node['span'][0],'}</d>'],
-                    [node['span'][0],'<v>{'],
-                    [node['span'][1],'}</v>'],
-                    [node['span2'][0],'<a>{'],
-                    [node['span2'][1],'}</a>'],
-                    [len(node['data_line']),'</T>'], ]
+def listDirNoHidden(dirArg):
+    for fileName in os.listdir(dirArg):
+        if not fileName.startswith('.'):
+            yield fileName
 
 
-    elif node['type'] == 'url':
-
-        if node['span2'][0] == -1:
-            args = [[0,'<U>'], 
-                    [0,'<d>{'], 
-                    [node['span'][0],'}</d>'],
-                    [node['span'][0],'<v>{'],
-                    [node['span'][1],'}</v>'],
-                    [len(node['data_line']),'</U>'], ]
-
-        else :
-            args = [[0,'<U>'], 
-                    [0,'<d>{'], 
-                    [node['span'][0],'}</d>'],
-                    [node['span'][0],'<v>{'],
-                    [node['span'][1],'}</v>'],
-                    [node['span2'][0],'<a>{'],
-                    [node['span2'][1],'}</a>'],
-                    [len(node['data_line']),'</U>'], ]
-
-    
-    if args is not None :
-        line = insertMultStr(args, node['data_line'])
-        print(line)
-
-    for child in node['childs'] :
-        printNode(child,lvl+1)
-    
-
-dirOpsTexts = getAbsPathRelToFile(relPathToOpsDir)
-threadNumList = listDirNoHidden(dirOpsTexts)
-
-i = 0
-
-for threadNum in threadNumList :
-    #if i == 1: 
-    #    break
-    #i=1+i
-
-    opFileFolderPath = os.path.join(dirOpsTexts,threadNum)
-    opFilePath = os.path.join(opFileFolderPath,threadNum+".txt")
-
-    with open(opFilePath,'r') as f:
-
-        lines = f.readlines()
-
-        node = {'value':threadNum,
-                'type':'thread',
-                'childs':[],
-                'UID':("p"+threadNum+"l"+str(0))};
-
-        parentNode = getValidParent(node,parentNode)
-        nodeTable['thread'].append(node)
-        parentNode['childs'].append(node)
-        node['parent'] = parentNode
-        parentNode = node
-
-
-        for cnt,line in enumerate(lines) :
-
-            UID = "p"+threadNum+"l"+str(cnt+1)
-
-            line = re.sub(r'\s+',' ',line)
-            line = line.rstrip()
-            line = line.lstrip()
-
-            header  = reHeader.match(line)
-            edition  = reEdition.match(line)
-            author = reAuthor.match(line)
-            title = reTitle.match(line)
-            url  = reUrl.match(line)
-
-            if header :
-                value = line[header.span(1)[0]:header.span(1)[1]]
-                node = { 'value':value,
-                         'data_line':line,
-                         'UID':UID,
-                         'type':'header',
-                         'childs':[], 
-                         'span2': header.span(1),
-                         'span': header.span(2)}
-            elif edition :
-                value = line[edition.span(1)[0]:edition.span(1)[1]]
-                node = { 'value':value,
-                         'data_line':line,
-                         'UID':UID,
-                         'type':'edition',
-                         'childs':[], 
-                         'span': edition.span(1)}
-            elif title :
-                node = { 'value':line[title.span(1)[0]:title.span(1)[1]],
-                         'data_line':line,
-                         'UID':UID,
-                         'type':'title',
-                         'span': title.span(1),
-                         'span2': title.span(2),
-                         'childs':[], }
-            elif author :
-                value = line[author.span(1)[0]:author.span(1)[1]]
-                node = { 'value':value,
-                         'data_line':line,
-                         'UID':UID,
-                         'type':'author',
-                         'childs':[], 
-                         'span2': author.span(2),
-                         'span': author.span(1)}
-                nodeTable['author'].append(node)
-            elif url :
-                node = { 'value':line[url.span(1)[0]:url.span(1)[1]],
-                         'data_line':line,
-                         'UID':UID,
-                         'type':'url',
-                         'childs':[], 
-                         'span2': url.span(2),
-                         'span': url.span(1)}
-
-            else :
-                node = genVoidNode(line,UID)
-
-
-
-
-
-
-            parentNode = getValidParent(node,parentNode)
-            #if node['type'] == 'title' :
-            #    if parentNode['type'] != 'author' :
-            #        node = genVoidNode(line,UID)
-            #        parentNode = getValidParent(node,parentNode)
-            nodeTable[node['type']].append(node)
+### methods ###
+def __linkNode(node, parentNode=None): 
+    parentNode = __getValidParent(node,parentNode)
+    __addToNodeTable(node) 
+    if node['type'] != 'root' :
+        if node['type'] != 'VOID' or parentNode['type'] == 'root' :
             parentNode['childs'].append(node)
             node['parent'] = parentNode
+        else :
+            parentNode['parent']['childs'].append(node)
+            node['parent'] = parentNode['parent']
+    if node['type'] != 'VOID' :
+        parentNode = node
+    return parentNode
 
-            if node['type'] != 'VOID' :
-                parentNode = node
+
+  
+def __init():
+    node = __genNode('root')
+    ov['tree'] = node
+    node = ov['tree']
+    node['UID']="P0L0"
+    parentNode = __linkNode(node)
+    node = None
+    return node, parentNode
 
 
-#printNode(nodeTable['root'][0])
-valueTable = genValueTable()
-summarizeValueTable()
+def __parseDataFromOpText():
+    relPathToOpsDbDir = '../../db/parse'
+    dirOpsdb = getAbsPathFromRelPath(relPathToOpsDbDir)
+    relPathToOpsDir = '../../threads/ops'
+    dirOpsTexts = getAbsPathFromRelPath(relPathToOpsDir)
+    threadNumList = listDirNoHidden(dirOpsTexts)
+
+    reTitle = re.compile("^>([^\[(]+?)<*(?:(?:\s*-*\s*[\[(]\s*([^\[\]()]+)\s*[\])])|(?:\s+-\s+(.+)|\s+((?:pt\.?|part|ch\.?|chapter)\s+\d+)|))$")
+    reAuthor = re.compile("^[bB]y\s([^\[(]+?)(?:[- ]*[\[(]\s*([^\[\]()]+)\s*[\])])*$")
+    reUrl =  re.compile("^(http[^ ]+)(?:[- ]*[\[(]\s*([^\[\]()]+)\s*[\])])*$")
+    reEdition = re.compile(r"^(?:>|\")\s*([^>\"]+)\s*(?:<|\")\s*\w*$")
+    reHeader = re.compile("^/(\w+)/.*#(\d+)$")
+
+    node, parentNode = __init()
+
+    for threadNum in threadNumList :
+
+        opFileFolderPath = os.path.join(dirOpsTexts,threadNum)
+        opFilePath = os.path.join(opFileFolderPath,threadNum+".txt")
+
+        with open(opFilePath,'r') as f:
+
+            lines = f.readlines()
+
+            node = __genNode('thread')        
+            node['UID']="P"+threadNum+"L"+str(0)
+            node['value']=threadNum
+
+            parentNode = __linkNode(node,parentNode)
+
+
+            for cnt,line in enumerate(lines) :
+
+                uid = "P"+threadNum+"L"+str(cnt+1)
+
+                line = re.sub(r'\s+',' ',line)
+                line = line.rstrip()
+                line = line.lstrip()
+
+                node=__genNode()
+                node['UID']=uid
+                node['data_line']=line
+
+                header  = reHeader.match(line)
+                edition  = reEdition.match(line)
+                author = reAuthor.match(line)
+                title = reTitle.match(line)
+                url  = reUrl.match(line)
+
+                if header :
+                    value = line[header.span(1)[0]:header.span(1)[1]]
+                    node['value']=value 
+                    node['type']='header' 
+                    node['span']=header.span(1) 
+                    node['span2']=header.span(2) 
+                elif edition :
+                    value = line[edition.span(1)[0]:edition.span(1)[1]]
+                    node['value']=value 
+                    node['type']='edition' 
+                    node['span']=edition.span(1) 
+                elif title :
+                    value = line[title.span(1)[0]:title.span(1)[1]]
+                    node['value']=value 
+                    node['type']='title' 
+                    node['span']=title.span(1) 
+                    node['span2']=title.span(2) 
+                elif author :
+                    value = line[author.span(1)[0]:author.span(1)[1]]
+                    node['value']=value 
+                    node['type']='author' 
+                    node['span']=author.span(1) 
+                    node['span2']=author.span(2) 
+                elif url :
+                    value = line[url.span(1)[0]:url.span(1)[1]]
+                    node['value']=value 
+                    node['type']='url' 
+                    node['span']=url.span(1) 
+                    node['span2']=url.span(2) 
+                else :
+                    node['type']='VOID' 
+
+                parentNode = __linkNode(node,parentNode)
+
+    __genUIDTable(ov['tree'])
+    __genUIDTypeTable()
+
+    json_object = json.dumps(ov["UIDTable"], indent=4)
+    filePathOpsDb = os.path.join(dirOpsdb,"ops.json") 
+    with open(filePathOpsDb, "w") as outfile:
+        outfile.write(json_object)
+
+    json_object = json.dumps(ov["UIDTypeTable"], indent=4)
+    filePathOpsTypesDb = os.path.join(dirOpsdb,"opsTypes.json") 
+    with open(filePathOpsTypesDb, "w") as outfile:
+        outfile.write(json_object)
+
+def __genUIDTypeTable() :
+    for type in nodeTable :
+        ov['UIDTypeTable'][type]=[]
+        for node in nodeTable[type]:
+            ov['UIDTypeTable'][type].append(node['UID'])
+
+def __genUIDTable(node) :
+
+    uid = node['UID']
+    puid = None
+    cuid = []
+
+    if node['type'] != 'root' :
+        puid = node['parent']['UID']
+    keys = set(node) - set(['parent','childs'])
+    copiedNode = { k:node[k] for k in keys}
+    copiedNode['parentUID'] = puid
+    copiedNode['childUIDs'] = cuid
+    UIDTable[copiedNode['UID']] = copiedNode
+
+    for child in node['childs'] :
+        UIDTable[copiedNode['UID']]['childUIDs'].append(child['UID'])
+        __genUIDTable(child)
+
+__parseDataFromOpText()
+
+

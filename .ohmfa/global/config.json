@@ -1,0 +1,42 @@
+{
+    "paths": {
+        "top": "../..",
+        "b_t_values":"b/t_values.txt",
+        "h_t_values":"h/t_values.json",
+        "b_values":"b/values.txt",
+        "h_uidStats":"h/uidStats.json",
+        "h_uids":"h/uids.json",
+        "h_t_uids":"h/t_uids.json",
+        "h_t_valueStats":"h/uidStats.json",
+        "h_t_valueAliases":"h/t_valueAliases.json"
+    },
+    "types": {
+        "author":{
+            "lvl" : 1,
+            "valid" :{
+                "parents": ["thread"]
+            },
+            "attributes":{}
+
+        }, "title":{
+            "lvl" : 2,
+            "valid" :{
+                "parents": [ "author" ]
+            },
+            "attributes":{
+                "iteration":{},
+                "name":{}
+            }
+
+        }, "url": {
+            "lvl" : 3,
+            "valid" :{
+                "parents": [
+                    "title"
+                ]
+            },
+            "attributes":{}
+
+        }
+    }
+}
