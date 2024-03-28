@@ -1,5 +1,6 @@
 """ doc """
 from lib.controllers.controller import Controller
 
-class Fetcher(Controller):
+class JobController(Controller):
     """ doc """
+    controller_type = 'job'

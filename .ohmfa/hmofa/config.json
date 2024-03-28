@@ -2,9 +2,16 @@
     "name" : "hmofa",
     "masterbins" :{},
     "stories" : {},
-    "ops" : {
-        "tgt_dir":"db/hmofa/ops",
-        "page_url":"https://desuarchive.org/trash/search/text/%22Human%20Males%20On%20Female%20Anthros%20General%22/type/op/",
+    "threads" : {
+        "fetcher": {
+            "url":"https://desuarchive.org/trash/search/text/%22Human%20Males%20On%20Female%20Anthros%20General%22/type/op/",
+            "file_managers": {
+                "thread_htmls": {
+                    "reldir" : "content/threads/hmofa"
+                 },
+            "selected_file" : "thread_htmls"
+            }
+        },
         "types":{
             "thread_header":{
                 "rel_lvl" : [ 0, "author" ],

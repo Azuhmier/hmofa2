@@ -1,7 +1,6 @@
 """ doc """
-from lib.parser.html_parser import HtmlParser
-
-class SingleHtmlParser(HtmlParser):
+from lib.utilities.iter import Iter
+class SoupIter(Iter):
     """ doc  """
 
     idx = -1
