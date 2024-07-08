@@ -5,21 +5,11 @@ from lib.controllers.main_controller import MainController
 
 ohmfa = MainController()
 ohmfa.add('hmofa')
-ohmfa.config
-print(ohmfa.root)
-print(ohmfa.parent)
-print(ohmfa.top)
-print(ohmfa.hmofa.root)
-print(ohmfa.hmofa.parent)
-print(ohmfa.hmofa.top)
-ohmfa.hmofa.config
 ohmfa.hmofa.add('threads')
-print(ohmfa.hmofa.threads)
-ohmfa.hmofa.threads.config
-print(ohmfa.hmofa.threads.root)
-print(ohmfa.hmofa.threads.parent)
-print(ohmfa.hmofa.threads.top)
 ohmfa.hmofa.threads.add('fetcher')
-ohmfa.hmofa.threads.fetcher
-ohmfa.hmofa.threads.fetcher
+ohmfa.hmofa.threads.fetcher.f.fname='bubba'
+print(ohmfa.hmofa.threads.fetcher.f.fname)
+print(ohmfa.hmofa.threads.fetcher.f.fnamext)
+print(ohmfa.hmofa.threads.fetcher.f.subpath)
+print(ohmfa.hmofa.threads.fetcher.f.relsubdir)
 #code.interact(local=locals())

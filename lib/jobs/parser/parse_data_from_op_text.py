@@ -1,42 +1,45 @@
-#!/usr/bin/env python3
+""" doc """
 import os
 import re
 import sys
 import json
 
-opts = {"updateOnly":True,"verbose":True}
-if not opts['verbose'] :
-    sys.stdout = open(os.devnull, 'w')
+from lib.main import Main
+from lib.controllers.job_controller import JobController
 
+class ParseDataFromOpText(JobController,Main):
+    """ doc """
 
+    ov={ 'tree': {},
+        'nodeTable':{},
+        'UIDTable':{},
+        'UIDTypeTable':{},
+        'nodeOrd': { 'root':0,
+            'thread':1,
+            'header':2,
+            'edition':2,
+            'author':2,
+            'title':3,
+            'url':4 },}
 
-### Globals ###
-ov={ 'tree': {},
-     'nodeTable':{},
-     'UIDTable':{},
-     'UIDTypeTable':{},
-     'nodeOrd': { 'root':0,
-              'thread':1,
-              'header':2,
-              'edition':2,
-              'author':2,
-              'title':3,
-              'url':4 },}
-
-nodeOrd   = ov['nodeOrd']
-nodeTable = ov['nodeTable']
-UIDTable = ov['UIDTable']
-UIDTypeTable = ov['UIDTypeTable']
 
 
 ### utilities ###
-def __addToNodeTable(node) :
-    if node['type'] not in nodeTable.keys() :
-        nodeTable[node['type']]=[]
-    nodeTable[node['type']].append(node)
+def getAbsPathFromRelPath(relPathArg):
+    dirCurScript = os.path.dirname(__file__)
+    dirtyAbsPathArg = os.path.join(dirCurScript, relPathArg) 
+    absPathArg = os.path.abspath(dirtyAbsPathArg)
+    return absPathArg
+
+def __addToNodeTable(self, node) :
+    """ doc """
+    if node['type'] not in self.ov['nodeTable'].keys() :
+        self['nodeTable'][node['type']]=[]
+    self.ov['nodeTable'][node['type']].append(node)
 
 
-def __genNode(type=None) :
+def __genNode(self, type=None) :
+    """ doc """
     node = {'UID':None,
             'type':type,
             'data_line':None,
@@ -47,27 +50,24 @@ def __genNode(type=None) :
             'childs':[], }
     return node
 
-def getAbsPathFromRelPath(relPathArg):
-    dirCurScript = os.path.dirname(__file__)
-    dirtyAbsPathArg = os.path.join(dirCurScript, relPathArg) 
-    absPathArg = os.path.abspath(dirtyAbsPathArg)
-    return absPathArg
-
-def __getValidParent(node, parentNode=None) :
+def __getValidParent(self, node, parentNode=None) :
+    """ doc """
     if node['type'] != 'VOID' :
         if node['type'] != 'root' :
-            while nodeOrd[node['type']] <= nodeOrd[parentNode['type']]:
+            while self.ov['nodeOrd'][node['type']] <= self.['nodeOrd'][parentNode['type']]:
                 parentNode = parentNode['parent']
     return parentNode
 
-def listDirNoHidden(dirArg):
+def listDirNoHidden(self, dirArg):
+    """ doc """
     for fileName in os.listdir(dirArg):
         if not fileName.startswith('.'):
             yield fileName
 
 
 ### methods ###
-def __linkNode(node, parentNode=None): 
+def __linkNode(self, node, parentNode=None): 
+    """ doc """
     parentNode = __getValidParent(node,parentNode)
     __addToNodeTable(node) 
     if node['type'] != 'root' :
@@ -82,10 +82,10 @@ def __linkNode(node, parentNode=None):
     return parentNode
 
 
-  
-def __init():
+def __init(self):
+    """ doc """
     node = __genNode('root')
-    ov['tree'] = node
+    self.ov['tree'] = node
     node = ov['tree']
     node['UID']="P0L0"
     parentNode = __linkNode(node)
@@ -93,7 +93,7 @@ def __init():
     return node, parentNode
 
 
-def __parseDataFromOpText():
+def __parseDataFromOpText(self):
     relPathToOpsDbDir = '../../db/parse'
     dirOpsdb = getAbsPathFromRelPath(relPathToOpsDbDir)
     relPathToOpsDir = '../../threads/ops'
@@ -189,14 +189,15 @@ def __parseDataFromOpText():
     with open(filePathOpsTypesDb, "w") as outfile:
         outfile.write(json_object)
 
-def __genUIDTypeTable() :
-    for type in nodeTable :
+def __genUIDTypeTable(self) :
+    """ doc """
+    for type in self['nodeTable'] :
         ov['UIDTypeTable'][type]=[]
-        for node in nodeTable[type]:
+        for node in self.['nodeTable'][type]:
             ov['UIDTypeTable'][type].append(node['UID'])
 
-def __genUIDTable(node) :
-
+def __genUIDTable(self, node) :
+    """ doc """
     uid = node['UID']
     puid = None
     cuid = []
@@ -207,12 +208,8 @@ def __genUIDTable(node) :
     copiedNode = { k:node[k] for k in keys}
     copiedNode['parentUID'] = puid
     copiedNode['childUIDs'] = cuid
-    UIDTable[copiedNode['UID']] = copiedNode
+    self.ov['UIDTable'][copiedNode['UID']] = copiedNode
 
     for child in node['childs'] :
-        UIDTable[copiedNode['UID']]['childUIDs'].append(child['UID'])
+        self.ov['UIDTable'][copiedNode['UID']]['childUIDs'].append(child['UID'])
         __genUIDTable(child)
-
-__parseDataFromOpText()
-
-

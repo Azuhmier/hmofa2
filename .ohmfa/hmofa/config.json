@@ -5,38 +5,26 @@
     "threads" : {
         "fetcher": {
             "url":"https://desuarchive.org/trash/search/text/%22Human%20Males%20On%20Female%20Anthros%20General%22/type/op/",
-            "file_managers": {
-                "thread_htmls": {
-                    "reldir" : "content/threads/hmofa"
-                 },
-            "selected_file" : "thread_htmls"
-            }
-        },
+            "file_managers": [ { 
+                    "name" :"thread_htmls", 
+                    "reldir" : "content/threads/hmofa" } ],
+            "selected_file" : "thread_htmls" },
         "types":{
             "thread_header":{
                 "rel_lvl" : [ 0, "author" ],
                 "valid" :{
                     "parents": [ "thread" ],
-                    "shared_parenity" : ["thread"]
-                },
-                "attributes":{}
-
-            }, "thread_edition":{
+                    "shared_parenity" : ["thread"] },
+                "attributes":{} },
+            "thread_edition":{
                 "rel_lvl" : [ 0, "author" ],
                 "valid" :{
                     "parents": ["thread"],
-                    "shared_parenity" : ["thread"]
-                },
-                "attributes":{}
-
-            }, "thread":{
+                    "shared_parenity" : ["thread"] },
+                "attributes":{} },
+            "thread":{
                 "rel_lvl" : [ -1, "author" ],
                 "valid" :{
                     "parents": [],
-                    "shared_parenity" : ["thread"]
-                },
-                "attributes":{}
-            }
-        }
-    }
-}
+                    "shared_parenity" : ["thread"] },
+                "attributes":{} } } } }

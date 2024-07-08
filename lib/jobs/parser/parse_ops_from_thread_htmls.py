@@ -5,12 +5,12 @@ import sys
 import time
 import datetime
 from bs4 import BeautifulSoup
+from lib.controllers.job_controller import JobController
 
-opts = {"updateOnly":True,"verbose":True}
-if not opts['verbose'] :
-    sys.stdout = open(os.devnull, 'w')
-relDirThreadHtmls   = '../../threads/html'
-relDirOpTexts   = '../../threads/ops'
+class ParseOpsFromThreadHtmls(JobController):
+    """ doc """
+    relDirThreadHtmls   = '../../threads/html'
+    relDirOpTexts   = '../../threads/ops'
 
 def getThreadNums(dirThreadHtmls):
     for fileNameThreadHtml in os.listdir(dirThreadHtmls):

@@ -2,6 +2,7 @@
 import sys
 import os
 import json
+import copy
 from lib.main import Main
 
 
@@ -13,18 +14,17 @@ class FileManager(Main):
     subdir = None
     fname = None
     fext = None
-    fext = None
+    _relpath = None
     root = None
     content = None
     dspts = {}
     selected = None
-    _bp = {
-        reldir : None,
-        subdir : None,
-        fname : None,
-        fext : None,
-        fext : None,
-        content : None, }
+    bp = {
+        'reldir' : None,
+        'subdir' : None,
+        'fname' : None,
+        'fext' : None,
+        'content' : None, }
 
     def __init__(self, root=None, selected = None, dspts = None):
         """doc"""
@@ -41,10 +41,11 @@ class FileManager(Main):
         dspt = self.dspts[self.selected]
         self.resolve_attrs(dspt)
 
-    def add_dspt(self, dspt):
+    def add_dspt(self, dspt_arg):
         """ doc """
+        dspt = copy.deepcopy(dspt_arg)
         name = dspt.pop('name')
-        dspt = self.resolve_dspt(dspt,self._bp)
+        dspt = self.resolve_dspt(dspt,self.bp)
         self.dspts[name] = dspt
 
 
@@ -139,22 +140,38 @@ class FileManager(Main):
                 self.content = openfile.read().splitlines()
 
 
-@property
-def fnamext(self):
-    """ doc """
-    return self.fname + self.fext
+    @property
+    def fnamext(self):
+        """ doc """
+        fext = self.fext
+        fname = self.fname
+        if self.fext is None:
+            fext = ''
+        return fname + fext
 
-@property
-def subpath(self):
-    """ doc """
-    return os.path.join(self.subdir, self.fnamext)
+    @property
+    def subpath(self):
+        """ doc """
+        fext = self.fext
+        fname = self.fname
+        subdir = self.subdir
 
-@property
-def relsubdir(self):
-    """ doc """
-    return os.path.join(self.reldir,self.subdir)
+        if self.fext is None:
+            fext = ''
 
-@property
-def relpath(self):
-    """ doc """
-    return os.path.join(self.relsubdir,self.fnamext)
+        fnamext =  fname + fext
+
+        if subdir is None:
+            subdir = ''
+
+        return os.path.join(subdir, fnamext)
+
+    @property
+    def relsubdir(self):
+        """ doc """
+        return os.path.join(self.reldir,self.subdir)
+
+    @property
+    def relpath(self):
+        """ doc """
+        return os.path.join(self.relsubdir,self.fnamext)

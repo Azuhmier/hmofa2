@@ -17,7 +17,7 @@ class Main():
             if value is not None:
                 if name in dspt :
                     dspt[name] = value
-        return dspt
+        return copy.deepcopy(dspt)
 
     def resolve_arg(self, name, arg):
         """ doc """
