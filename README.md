@@ -1,37 +1,9 @@
-Fetch
-    1) WAN -> threads (html)
-    2) threads (html) -> OP (html)
-Parse
-    1) OP (html) -> OP (text)
-    2) OP (text) -> DATA
-        nodeOrd
-            types   | ords
-            --------------
-            root    | 1
-            thread  | 2
-            header  | 3
-            edition | 4
-            author  | 5
-            title   | 6
-            url     | 7
+## Story Criteria
+- Only Stories that end up in the OP of their respective general get into the masterbin of said general.
+- All other stories deemed relevant or popular enough go into the outerbin of their respective general 
 
-        nodes.json
-            "{UID}" : {
-                data_line:
-                UID:
-                value:
-                span:
-                span2:
-                type:
-                childuids:
-            }
+## Tagging
+- Tagging follows two pairs of square brackets: [anthro_tags][general_tags]
+- Completed stories need to be differentiated (eg. the tag "COMPLETED")
+- Dead Links need to be differentiated (eg. the flag "X")
 
-        nodetypes.json
-
-Resolve
-Analyze
-
-
-Glossary
-    OP             Original Poster; the first post at the begining of a thread that contains the list of recent stories along 
-                   with edition numbers and other relevant links
